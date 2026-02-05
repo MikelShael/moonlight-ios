@@ -1,0 +1,48 @@
+name: Build Moonlight IPA
+
+on:
+  push:
+    branches: [macbook-gestures]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build unsigned app
+        run: |
+          xcodebuild -project Moonlight.xcodeproj \
+            -scheme "Moonlight" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE="" \
+            clean build
+
+      - name: Package IPA
+        run: |
+          APP_PATH=$(find build -name "Moonlight.app" -type d | head -1)
+          echo "Found app at: $APP_PATH"
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r Moonlight-macbook-gestures.ipa Payload
+          ls -la Moonlight-macbook-gestures.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Moonlight-macbook-gestures
+          path: Moonlight-macbook-gestures.ipa
